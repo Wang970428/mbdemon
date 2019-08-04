@@ -1,9 +1,9 @@
 <template>
   <div id="app">
-      初始化项目
+    <router-view></router-view>
   </div>
 </template>
 
-<style lang="less">
+<style scoped lang="less">
 
 </style>
