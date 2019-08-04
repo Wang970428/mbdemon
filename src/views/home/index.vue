@@ -18,7 +18,7 @@
 <script>
 import { getChannels } from '@/api/channels.js'
 import { getArticles } from '@/api/article.js'
-import store from '@/store.js'
+import { mapState } from 'vuex'
 export default {
   name: 'HomeIndex',
   data () {
@@ -35,6 +35,7 @@ export default {
     }
   },
   computed: {
+    ...mapState(['user']),
     activeChannelId () {
       return this.channelID[this.active]
     }
@@ -44,7 +45,7 @@ export default {
   },
   methods: {
     async loadChannels () {
-      const { user } = store.state
+      const user = this.user
       const lsChannels = JSON.parse(window.localStorage.getItem('channels'))
       if (!user && lsChannels) {
         this.channelID = lsChannels
@@ -57,6 +58,7 @@ export default {
           item.downPullLoading = false // 当前频道下拉状态
           item.upPullLoading = false // 当前频道上拉加载更多
           item.upPullFinished = false // 当前频道加载完毕
+          item.timestamp = Date.now() // 时间戳
         })
         this.channelID = res.channels
       }
@@ -74,17 +76,25 @@ export default {
       // }
     },
     async loadArticles () {
-      const { id: channel_id } = this.activeChannelId
+      const { id: channel_id, timestamp } = this.activeChannelId
       const res = await getArticles({
         channel_id,
-        timestamp: Date.now(),
+        timestamp,
         with_top: 1
       })
       return res
     },
     async onLoad () {
-      const data = await this.loadArticles()
-      console.log(data)
+      let data = []
+      data = await this.loadArticles()
+      if (data.pre_timestamp && data.results.length === 0) {
+        // 把返回的历史时间戳赋值给当前激活频道的属性timestamp
+        this.activeChannelId.timestamp = data.pre_timestamp // 默认没有 -> 历史时间戳1
+        data = await this.loadArticle()
+        console.log(data)
+      }
+      // 更新时间戳
+      this.activeChannelId.timestamp = data.pre_timestamp
 
       // 异步更新数据
       setTimeout(() => {
