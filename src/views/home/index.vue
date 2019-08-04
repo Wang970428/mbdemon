@@ -1,24 +1,23 @@
 <template>
   <div class="container">
-    <van-nav-bar title="首页"  fixed/>
+    <van-nav-bar title="首页" fixed />
     <!-- tab切换 -->
     <van-tabs v-model="active" class="my-channl">
-      <van-tab :title="item.name"
-      v-for='(item) in channelID'
-      :key='item.id'>
-        <van-pull-refresh v-model="isLoading" @refresh="onRefresh">
-          <van-list v-model="loading" :finished="finished" finished-text="没有更多了" @load="onLoad">
-          <van-cell v-for="item in list" :key="item" :title="item" />
-        </van-list>
+      <van-tab :title="item.name" v-for="(item) in channelID" :key="item.id">
+        <!-- 列表 -->
+        <van-pull-refresh v-model="item.downPullLoading" @refresh="onRefresh">
+          <van-list v-model="item.upPullLoading" :finished="item.upPullFinished" finished-text="没有更多了" @load="onLoad">
+            <van-cell v-for="item in list" :key="item" :title="item" />
+          </van-list>
         </van-pull-refresh>
       </van-tab>
     </van-tabs>
-
   </div>
 </template>
 
 <script>
 import { getChannels } from '@/api/channels.js'
+import { getArticles } from '@/api/article.js'
 import store from '@/store.js'
 export default {
   name: 'HomeIndex',
@@ -35,6 +34,11 @@ export default {
       channelID: []
     }
   },
+  computed: {
+    activeChannelId () {
+      return this.channelID[this.active]
+    }
+  },
   created () {
     this.loadChannels()
   },
@@ -47,6 +51,13 @@ export default {
       }
       if ((!user && !lsChannels) || user) {
         const res = await getChannels()
+        // 设计符合要求的channels数据结构
+        res.channels.forEach(item => {
+          item.articles = [] // 当前频道的文章列表数据
+          item.downPullLoading = false // 当前频道下拉状态
+          item.upPullLoading = false // 当前频道上拉加载更多
+          item.upPullFinished = false // 当前频道加载完毕
+        })
         this.channelID = res.channels
       }
       // if (!user) {
@@ -61,9 +72,20 @@ export default {
       //   const res = await getChannels()
       //   this.channelID = res.channels
       // }
-      console.log(this.channelID)
     },
-    onLoad () {
+    async loadArticles () {
+      const { id: channel_id } = this.activeChannelId
+      const res = await getArticles({
+        channel_id,
+        timestamp: Date.now(),
+        with_top: 1
+      })
+      return res
+    },
+    async onLoad () {
+      const data = await this.loadArticles()
+      console.log(data)
+
       // 异步更新数据
       setTimeout(() => {
         for (let i = 0; i < 10; i++) {
@@ -106,7 +128,7 @@ export default {
 .my-channl /deep/ .van-tabs__content {
   margin-top: 180px;
 }
-.my-channl{
+.my-channl {
   margin-bottom: 100px;
 }
 </style>
